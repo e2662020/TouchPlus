@@ -5,7 +5,6 @@ using System.IO;
 using System.Windows.Forms;
 using TouchPlus.Core;
 using TouchPlus.Core.Plugins;
-using TouchPlus.Plugins;
 using TouchPlus.UI.Controls;
 
 namespace TouchPlus.UI
@@ -368,8 +367,8 @@ namespace TouchPlus.UI
 
         private void OpenPluginSettings(IPatchPlugin plugin)
         {
-            DoubleClickPlugin typed = plugin as DoubleClickPlugin;
-            PatchController controller = typed != null ? typed.Controller : _context.Controller;
+            // 宿主不认识插件类型：设置页始终用宿主装配好的 controller
+            PatchController controller = _context.Controller;
             if (controller == null) return;
             using (MainForm form = new MainForm(controller, false, plugin))
             {

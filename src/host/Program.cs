@@ -5,7 +5,6 @@ using System.Threading;
 using System.Windows.Forms;
 using TouchPlus.Core;
 using TouchPlus.Core.Plugins;
-using TouchPlus.Plugins;
 using TouchPlus.UI;
 
 namespace TouchPlus
@@ -62,7 +61,22 @@ namespace TouchPlus
                 Log.Instance.Info("Touch+ v" + Version + " 启动（" + SystemInfo.VersionText + "）");
 
                 PluginHost host = new PluginHost(context.Capabilities);
-                foreach (IPatchPlugin builtIn in BuiltInPlugins.CreateAll(context)) host.Add(builtIn);
+                // 插件与宿主分开编译：启动时扫描 exe 同级的 plugins 目录
+                string pluginDir = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "plugins");
+                if (!Directory.Exists(pluginDir)) Directory.CreateDirectory(pluginDir);
+                foreach (string dll in Directory.GetFiles(pluginDir, "*.dll"))
+                {
+                    string loadError;
+                    IPatchPlugin plugin = PluginLoader.Load(dll, context, out loadError);
+                    if (plugin == null)
+                    {
+                        Log.Instance.Warn("插件加载失败：" + Path.GetFileName(dll) + "：" + loadError);
+                        continue;
+                    }
+                    if (host.Find(plugin.Id) != null) continue;
+                    host.Add(plugin);
+                    Log.Instance.Info("插件已加载：" + plugin.Name + "（" + Path.GetFileName(dll) + "）");
+                }
 
                 foreach (string path in new List<string>(settings.PluginPaths))
                 {

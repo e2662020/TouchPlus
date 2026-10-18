@@ -119,16 +119,5 @@ namespace TouchPlus.Core.Plugins
     }
 
     /// <summary>内置插件注册表：宿主自带的插件由这里创建（与外部插件走同一契约）。</summary>
-    public static class BuiltInPlugins
-    {
-        public static List<IPatchPlugin> CreateAll(PluginContext context)
-        {
-            List<IPatchPlugin> plugins = new List<IPatchPlugin>();
-            if (context != null && context.Controller != null)
-            {
-                plugins.Add(new TouchPlus.Plugins.DoubleClickPlugin(context.Controller));
-            }
-            return plugins;
-        }
-    }
+
 }
