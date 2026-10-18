@@ -63,7 +63,10 @@ $verifySrc = $core + (Get-ChildItem "$root\src\TouchPlus.Verify\*.cs" -Recurse |
 & $csc /nologo /target:winexe /platform:anycpu /out:"$root\$OutDir\TouchPlusVerify.exe" `
     "/win32manifest:$root\src\TouchPlus.Verify\app.manifest" @refs @verifySrc
 
-# ---------- 插件（独立 DLL，引用宿主 exe）----------
+# ---------- 插件（独立 DLL，引用宿主 exe；插件源码在独立仓库，可缺省）----------
+if (-not (Test-Path "$root\src\plugins")) {
+    Write-Host "未找到 src\plugins，跳过插件编译（宿主可单独使用，插件从插件仓库获取）" -ForegroundColor Yellow
+} else {
 $pluginOut = Join-Path $root "$OutDir\plugins"
 New-Item -ItemType Directory -Force -Path $pluginOut | Out-Null
 $pluginArgs = @('/nologo', '/target:library', '/platform:anycpu', "/out:$pluginOut\TouchPlus.Plugins.DoubleClick.dll")
@@ -73,6 +76,7 @@ $pluginArgs += $pluginSrc
 & $csc @pluginArgs
 if ($LASTEXITCODE -ne 0) { throw "插件编译失败" }
 Write-Host "插件已生成: $pluginOut\TouchPlus.Plugins.DoubleClick.dll" -ForegroundColor Green
+}
 
 $exe = Get-Item "$root\$OutDir\TouchPlus.exe"
 Write-Host ""
