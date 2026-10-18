@@ -24,11 +24,11 @@ function Get-Csc {
 $csc = Get-Csc
 Write-Host "编译器 : $csc" -ForegroundColor Cyan
 
-$core     = Get-ChildItem "$root\src\TouchPlus\Core\*.cs" -Recurse  | ForEach-Object { $_.FullName }
-$plugins  = Get-ChildItem "$root\src\TouchPlus\Plugins\*.cs"                    | ForEach-Object { $_.FullName }
-$ui       = Get-ChildItem "$root\src\TouchPlus\UI\*.cs"            | ForEach-Object { $_.FullName }
-$controls = Get-ChildItem "$root\src\TouchPlus\UI\Controls\*.cs"   | ForEach-Object { $_.FullName }
-$props    = Get-ChildItem "$root\src\TouchPlus\Properties\*.cs"    | ForEach-Object { $_.FullName }
+$core     = Get-ChildItem "$root\src\host\Core\*.cs" -Recurse  | ForEach-Object { $_.FullName }
+$plugins  = Get-ChildItem "$root\src\plugins\**\*.cs" -Recurse       | ForEach-Object { $_.FullName }
+$ui       = Get-ChildItem "$root\src\host\UI\*.cs"            | ForEach-Object { $_.FullName }
+$controls = Get-ChildItem "$root\src\host\UI\Controls\*.cs"   | ForEach-Object { $_.FullName }
+$props    = Get-ChildItem "$root\src\host\Properties\*.cs"    | ForEach-Object { $_.FullName }
 
 $refs = @('/r:System.dll', '/r:System.Core.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll')
 
@@ -46,14 +46,14 @@ if ($Test) {
 
 # ---------- 正式程序 ----------
 New-Item -ItemType Directory -Force -Path "$root\$OutDir" | Out-Null
-$manifest = "$root\src\TouchPlus\app.manifest"
+$manifest = "$root\src\host\app.manifest"
 $icon = "$root\assets\TouchPlus.ico"
 
 $args = @('/nologo', '/target:winexe', '/platform:anycpu', "/out:$root\$OutDir\TouchPlus.exe")
 if (Test-Path $manifest) { $args += "/win32manifest:$manifest" }
 if (Test-Path $icon)     { $args += "/win32icon:$icon"; $args += "/resource:$icon,TouchPlus.ico" }
 $args += $refs
-$args += ($core + $plugins + $ui + $controls + @("$root\src\TouchPlus\Program.cs") + $props)
+$args += ($core + $plugins + $ui + $controls + @("$root\src\host\Program.cs") + $props)
 
 & $csc @args
 if ($LASTEXITCODE -ne 0) { throw "编译失败" }
