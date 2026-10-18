@@ -1,0 +1,23 @@
+# ---------- 构建产物 ----------
+build/
+dist/
+*.exe
+*.pdb
+*.obj
+*.cache
+
+# ---------- 日志与临时文件 ----------
+*.log
+*.tmp
+*.bak
+*.user
+*.suo
+
+# ---------- IDE ----------
+.vs/
+.idea/
+*.sln.docstates
+
+# ---------- 系统 ----------
+Thumbs.db
+desktop.ini
