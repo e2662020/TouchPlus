@@ -105,3 +105,23 @@ pwsh -ExecutionPolicy Bypass -File .\build.ps1          # 构建
 
 **Q：补丁改了哪些系统设置？**
 只改 `HKCU\Control Panel\Mouse` 的 `DoubleClickWidth` / `DoubleClickHeight` / `DoubleClickSpeed` 三项，通过官方 API 写入，界面里可一键还原。
+
+## 仓库结构
+
+本仓库只包含**宿主**（Touch+ 本体）。插件在独立仓库维护：
+
+| 仓库 | 内容 |
+|---|---|
+| [TouchPlus](https://github.com/e2662020/TouchPlus) | 宿主：插件架构、系统层修补、界面、构建脚本 |
+| [TouchPlus.Plugin.DoubleClick](https://github.com/e2662020/TouchPlus.Plugin.DoubleClick) | 插件：触控双击容差（放宽双击判定矩形与时间窗） |
+
+宿主启动时扫描 exe 同级的 `plugins\*.dll`。安装插件只需把 DLL 放进该目录：
+
+```
+Touch+/
+  TouchPlus.exe
+  plugins/
+    TouchPlus.Plugins.DoubleClick.dll
+```
+
+没有插件时宿主照常运行，只是插件列表为空，可用「添加插件…」手动选择 DLL。
