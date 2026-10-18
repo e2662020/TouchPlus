@@ -1,121 +1,41 @@
-# Touch+ · 希沃触控屏补丁
+# Touch+ · 触控屏修补宿主
 
-> 解决触控大屏"手指双击两下打不开软件"的问题。
-> Windows 10/11 原生支持，兼容 Windows 7 SP1 及以上。
+> 面向 Windows 触控大屏的**插件化修补宿主**。
+> 宿主负责界面、插件生命周期、系统参数存取与安全边界；具体修什么由插件决定。
+
+Windows 10/11 原生支持，兼容 Windows 7 SP1 及以上。
 
 ---
 
-## 一、问题是什么
+## 一、这个仓库是什么
 
-Windows 判定"双击"，要求两次点击**落在同一个 4×4 像素的矩形内**、且间隔小于双击时间（默认 500ms）。
+本仓库只有**宿主**（`TouchPlus.exe`）。它是一个空壳 + 一套约束：
 
-触控屏（尤其是红外触摸框）手指点击的落点抖动通常有 **12~60 像素**，于是系统认为那是**两次相互独立的单击**，第二下不会变成双击 —— 软件当然打不开。
+- 发现并加载插件，校验插件声明的能力（钩子 / 输入注入 / 修改系统参数）；
+- 提供插件设置界面、日志、配置持久化、单实例与托盘；
+- 提供受控的系统参数读写（`PatchController`），插件自己不直接摸注册表；
+- 插件可随时启停，停用即还原它对系统做的改动（由插件自己实现）。
 
-**这不是希沃或某个软件的问题，是 Windows 双击判定阈值对触控太严。**
+**具体修补内容不在这个仓库**。官方插件在独立仓库维护：
 
-## 二、怎么修
+| 插件 | 作用 | 仓库 |
+|---|---|---|
+| 触控双击容差 | 放宽 Windows 双击判定矩形与时间窗，解决触控屏双击打不开应用 | [TouchPlus.Plugin.DoubleClick](https://github.com/e2662020/TouchPlus.Plugin.DoubleClick) |
 
-Touch+ 提供两层机制，**默认只用第一层**：
+没有装插件时宿主照常运行，只是插件列表为空 —— 这是一个**平台**，不是单一功能工具。
 
-| 机制 | 做法 | 风险 | 默认 |
-|---|---|---|---|
-| **系统层**（推荐） | 用 `SystemParametersInfo` 放宽 Windows 自己的双击矩形与时间窗，让系统**原生**识别抖动双击 | 无注入、无拦截、不装钩子 | ✅ 开启（50px / 800ms） |
-| **输入层**（高级） | 全局鼠标钩子拦截偏离过大的第二次点击，在锚点**合成**一次完整双击 | 需装钩子、会模拟点击，可能被安全软件提示 | ⬜ 默认关闭 |
+## 二、界面
 
-> 实测数据（200% 缩放面板，鼠标模拟抖动）：把矩形放宽到 40px 后，12~38px 的抖动点击**全部被系统原生识别**，桌面图标双击恢复正常。默认值已按反馈调到 **50px / 800ms**。
+两个视图，同一个窗口：
 
-### 一个被实测否掉的方案
+- **插件中心**（主界面）：已安装插件列表、启用/停用开关、添加插件、外观（跟随系统/浅色/深色）、关于宿主；
+- **插件设置**：每个插件自己的页面（概览 / 参数 / 日志 / 关于），由宿主框架提供壳，内容由插件的数据驱动。
 
-最初的"坐标对齐"思路是：在钩子里把光标挪到第一次点击的位置，让系统以为两次点击重合。
-**实测证明无效** —— Windows 的双击判定发生在原始输入阶段，`SetCursorPos` 改变不了投递坐标。
-该方案已从正式版移除（源码里保留枚举值作为记录），只保留"合成双击"。
+窗口是无边框圆角窗，Win10+ 走 DWM 合成，Win7/8 走经典双缓冲；所有控件主题化，深浅色自动跟随系统。
 
-## 三、使用
+## 三、插件机制
 
-1. 双击 `TouchPlus.exe`（**不需要管理员权限**，补丁只改当前用户的双击参数）。
-2. 主界面【概览】里确认"双击修复运行中"，右上角开关可随时暂停。
-3. 去桌面双击图标试试，回到【自检】区点两下可以看到：
-   - 两次落点的实际偏离（px）与间隔（ms）
-   - 系统是否识别成了双击
-4. 参数不合适时到【参数】页调"双击矩形"（4~200px）与"双击时间窗"，立即生效。
-5. 想恢复 Windows 原样：点【参数】页的"还原系统默认"。
-6. 关闭窗口 = 最小化到托盘（`Ctrl+Alt+T` 暂停/启用，托盘右键可退出）。
-7. 需要开机自启：底部"开机自启"开关，或【关于】页。
-
-### 命令行参数
-
-| 参数 | 作用 |
-|---|---|
-| `--show` | 强制显示主界面 |
-| `--tray` | 静默启动，只驻留托盘（自启用的就是它） |
-| `--safe` | **安全模式**：不改任何系统设置、不装钩子，只开界面（排障用，不写配置文件） |
-| `--page N` | 启动时直接打开第 N 个页签（0 概览 / 1 参数 / 2 排除 / 3 日志 / 4 关于） |
-| `--reset` | 恢复默认配置后启动 |
-| `--autoclose N` | N 秒后自动退出（自动化测试用） |
-
-## 四、兼容性与安全
-
-- **系统**：Windows 7 SP1 / 8 / 8.1 / 10 / 11（清单里声明了全部 supportedOS）。
-- **运行时**：.NET Framework 4.0+；Win10/11 自带 4.8，Win7 SP1 需装 4.6.2 以上。
-- **编译**：只用系统自带的 `csc.exe`，不需要 Visual Studio 或 .NET SDK。
-- **数据目录**：`%APPDATA%\TouchPlus\`（`settings.json` 配置、`logs\` 日志），卸载时删掉即可。
-- **开机自启**：只写 `HKCU\...\Run`，不装服务、不写系统目录。
-- **还原**：所有系统改动都可以在界面里一键还原；原始值在第一次修改前备份在配置里。
-
-### 输入层为什么默认关闭
-
-它需要安装全局鼠标钩子，并在必要时**模拟点击**。除了可能被安全软件提示，钩子回调一旦卡住会拖慢整个系统的鼠标输入，所以：
-
-- 注入**完全异步**（绝不在钩子回调里调 `SendInput`，这会造成 win32k 重入死锁、卡死输入）；
-- 回调带**看门狗**：超过 1 秒自动卸载钩子，宁可补丁失效也不卡系统；
-- 支持**长按保护**：识别为长按时按原时长重放，不破坏触控长按（右键）；
-- 支持**排除程序**列表（支持 `*` 通配），游戏/绘图类软件可排除；
-- 输入来源可过滤：自动 / 仅触控与笔 / 全部输入。
-
-## 五、源码结构与构建
-
-```
-build.ps1                      一键构建（自带编译器，无需 VS）
-assets/TouchPlus.ico           图标（多尺寸，32bpp）
-src/TouchPlus/
-  Core/                        Win32 封装、双击引擎、钩子、系统参数、设置、日志
-  UI/                          主题、自绘控件、主窗口、托盘
-  Program.cs                   入口、单实例、命令行
-src/TouchPlus.Test/            自检程序（纯逻辑 + 钩子链路）
-src/TouchPlus.Verify/          观察式验证工具（零注入，可拿到真实面板上跑）
-```
-
-构建：
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File .\build.ps1          # 构建
-.\build\TouchPlus.Test.exe logic                       # 纯逻辑自检（98 项，不碰系统）
-```
-
-## 六、常见问题
-
-**Q：放宽双击矩形会不会影响鼠标？**
-会：鼠标快速点两个很近的地方更容易被当成双击。所以默认值取 50px 而不是更大，并且可随时调小或还原；输入层还支持"仅触控/笔"过滤。
-
-**Q：为什么代码里不用 SendInput 改坐标？**
-实测无效（见上文）。只有"拦截 + 合成完整双击"才可靠。
-
-**Q：会不会被杀毒软件报？**
-系统层不会。输入层因为要模拟点击，部分安全软件可能提示，这是正常现象，默认关闭。
-
-**Q：补丁改了哪些系统设置？**
-只改 `HKCU\Control Panel\Mouse` 的 `DoubleClickWidth` / `DoubleClickHeight` / `DoubleClickSpeed` 三项，通过官方 API 写入，界面里可一键还原。
-
-## 仓库结构
-
-本仓库只包含**宿主**（Touch+ 本体）。插件在独立仓库维护：
-
-| 仓库 | 内容 |
-|---|---|
-| [TouchPlus](https://github.com/e2662020/TouchPlus) | 宿主：插件架构、系统层修补、界面、构建脚本 |
-| [TouchPlus.Plugin.DoubleClick](https://github.com/e2662020/TouchPlus.Plugin.DoubleClick) | 插件：触控双击容差（放宽双击判定矩形与时间窗） |
-
-宿主启动时扫描 exe 同级的 `plugins\*.dll`。安装插件只需把 DLL 放进该目录：
+插件是一个 `.dll`，放在 `TouchPlus.exe` 同级目录：
 
 ```
 Touch+/
@@ -124,4 +44,100 @@ Touch+/
     TouchPlus.Plugins.DoubleClick.dll
 ```
 
-没有插件时宿主照常运行，只是插件列表为空，可用「添加插件…」手动选择 DLL。
+宿主启动时扫描 `plugins\*.dll`，也可以在界面里用「添加插件…」选择任意位置的 DLL。
+
+### 契约
+
+插件实现 `IPatchPlugin`，并通过 `IPluginFactory` 暴露入口（宿主反射查找，公共无参构造函数）：
+
+```csharp
+public interface IPluginFactory
+{
+    string Id { get; }
+    string Name { get; }
+    IPatchPlugin Create(PluginContext context);
+}
+
+public interface IPatchPlugin
+{
+    string Id { get; }
+    string Name { get; }
+    string Summary { get; }
+    PluginSafety Safety { get; }     // Safe / Advanced
+    string IconKey { get; }
+    bool Enabled { get; }
+    bool Enable(out string error);
+    void Disable();
+    PluginStats GetStats();          // 给界面显示计数/读数
+    void SaveConfig();
+}
+```
+
+`PluginContext` 提供 `AppSettings`、`PatchController`、宿主能力声明。插件通过 `PatchController` 申请修改系统参数，由宿主统一备份原值、写入与还原。
+
+### 能力校验与信任边界
+
+宿主校验插件**声明**的能力是否在授权范围内（`AllowInputHook` / `AllowInputInjection` / `AllowSystemParams`）。
+
+必须说明：**能力声明是约束不是沙箱**。插件与宿主同进程、以当前用户权限运行，加载不可信 DLL 等同于运行不可信程序。只安装可信来源的插件。
+
+## 四、构建与运行
+
+只需要系统自带的 `csc.exe`（不需要 Visual Studio / .NET SDK）：
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File .\build.ps1        # 构建宿主
+.\build\TouchPlus.Test.exe logic                       # 纯逻辑自检（98 项，不碰系统）
+.\dist\Touch+\TouchPlus.exe --show                     # 启动
+```
+
+若本地存在 `src\plugins\`（联调用），`build.ps1` 会顺带把插件编成 DLL 输出到 `dist\Touch+\plugins\`；否则跳过，只产宿主。
+
+### 命令行
+
+| 参数 | 作用 |
+|---|---|
+| `--show` | 强制显示主界面 |
+| `--tray` | 静默启动，只驻留托盘（开机自启用它） |
+| `--safe` | 安全模式：不改任何系统设置、不装钩子，只开界面（排障用） |
+| `--theme light\|dark\|auto` | 指定配色 |
+| `--settings` | 直接打开插件设置窗口（`--page N` 指定页签） |
+| `--add-plugin <dll>` | 添加插件后退出（返回 0 成功 / 2 失败） |
+| `--reset` | 恢复默认配置后启动 |
+| `--autoclose N` | N 秒后自动退出（自动化测试用） |
+
+## 五、安全模型
+
+- **普通用户权限**：清单 `asInvoker`，不要求管理员；
+- **只动当前用户**：注册表只写 `HKCU`，系统改动由插件通过 `PatchController` 申请并备份原值；
+- **不装服务 / 不写系统目录 / 不驻留驱动**；
+- **无网络代码**：项目里没有任何 HTTP/Socket 调用，配置与日志只落 `%APPDATA%\TouchPlus\`；
+- **可还原**：停用插件或点「还原系统默认」即收回改动；
+- **输入注入默认关闭**：涉及钩子的插件必须显式开关并标注"高级"。
+
+## 六、目录结构
+
+```
+build.ps1                    一键构建（自带 csc，无需 VS/SDK）
+assets/TouchPlus.ico         程序图标（多尺寸 32bpp）
+src/host/
+  Program.cs                 入口：单实例、命令行、插件扫描与注册、托盘
+  Core/                      Win32 封装、PatchController、设置、日志、插件契约与加载器
+  UI/                        主题、自绘控件、插件中心、插件设置窗口
+  Properties/ app.manifest
+src/TouchPlus.Test/          逻辑自检（纯逻辑，不碰系统）
+src/TouchPlus.Verify/        观察式验证工具（零注入，可用于真实触控面板）
+```
+
+## 七、兼容性
+
+- **系统**：Windows 7 SP1 / 8 / 8.1 / 10 / 11；
+- **运行时**：.NET Framework 4.0+（Win10/11 自带 4.8；Win7 SP1 需 4.6.2+）；
+- **数据目录**：`%APPDATA%\TouchPlus\`（`settings.json`、`logs\`），删目录即彻底卸载。
+
+## 八、相关仓库
+
+| 仓库 | 内容 |
+|---|---|
+| [TouchPlus](https://github.com/e2662020/TouchPlus) | 宿主（本仓库） |
+| [TouchPlus.Plugin.DoubleClick](https://github.com/e2662020/TouchPlus.Plugin.DoubleClick) | 插件：触控双击容差 |
