@@ -7,7 +7,7 @@ Windows 触控大屏的"双击识别修复"工具。源码在 `src/`，构建脚
 
 ### Issue tracker
 
-Issues live as markdown files under `.scratch/` in this repo. See `docs/agents/issue-tracker.md`.
+Issues live as GitHub issues in `e2662020/TouchPlus` (via the `gh` CLI). See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
