@@ -7,6 +7,33 @@ Windows 10/11 原生支持，兼容 Windows 7 SP1 及以上。
 
 ---
 
+## 安装
+
+推荐用安装程序（单文件、按用户安装、**不需要管理员权限**）：
+
+```powershell
+.\dist\TouchPlusSetup.exe            # 图形安装
+.\dist\TouchPlusSetup.exe --silent   # 静默安装
+```
+
+安装程序会：
+
+1. 把文件放到 `%LOCALAPPDATA%\Programs\TouchPlus\`（宿主 exe + `plugins\` 插件 + 图标 + README）；
+2. 创建桌面与开始菜单快捷方式（可在安装界面取消）；
+3. 写入「设置 → 应用」里的卸载项（`HKCU\...\Uninstall\TouchPlus`）；
+4. 可选写入开机自启（`HKCU\...\Run`，启动参数 `--tray`）。
+
+卸载：在「设置 → 应用」里卸载，或运行安装目录里的 `TouchPlusSetup.exe --uninstall`。
+卸载会删除文件与快捷方式、移除自启，并把双击参数还原为 Windows 默认值（4×4 / 500ms）。
+
+构建安装程序：
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File .\tools\build-installer.ps1
+```
+
+它会先生成宿主与插件，再把它们作为嵌入资源打进 `dist\TouchPlusSetup.exe`（约 1.6 MB）。
+
 ## 一、这个仓库是什么
 
 本仓库只有**宿主**（`TouchPlus.exe`）。它是一个空壳 + 一套约束：
